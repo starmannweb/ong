@@ -1,0 +1,224 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ MULTI-TENANT ============
+
+model Organization {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  document        String?   // CNPJ
+  email           String
+  phone           String?
+  logo            String?
+  description     String?
+  
+  // Configuração Pagou
+  pagouApiKey     String?   @map("pagou_api_key")
+  pagouSecretKey  String?   @map("pagou_secret_key") // Criptografado
+  pagouWebhookSecret String? @map("pagou_webhook_secret")
+  
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  users           User[]
+  campaigns       Campaign[]
+  webhookLogs     WebhookLog[]
+  auditLogs       AuditLog[]
+  
+  @@index([slug])
+  @@index([isActive])
+  @@map("organizations")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  passwordHash    String    @map("password_hash")
+  role            String    @default("ORG_ADMIN") // Enum não suportado nativamente no SQLite
+  
+  organizationId  String?   @map("organization_id")
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  
+  isActive        Boolean   @default(true)
+  emailVerified   DateTime? @map("email_verified")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+// ============ CAMPANHAS ============
+
+model Campaign {
+  id              String    @id @default(cuid())
+  organizationId  String    @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  
+  title           String
+  slug            String
+  description     String
+  shortDesc       String?   @map("short_desc")
+  coverImage      String?   @map("cover_image")
+  
+  goalAmount      Decimal   @map("goal_amount")
+  currentAmount   Decimal   @default(0) @map("current_amount")
+  
+  startDate       DateTime  @map("start_date")
+  endDate         DateTime? @map("end_date")
+  
+  status          String    @default("DRAFT") // Enum removido
+  isHighlighted   Boolean   @default(false) @map("is_highlighted")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  donations       Donation[]
+  images          CampaignImage[]
+  
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([status])
+  @@index([isHighlighted])
+  @@map("campaigns")
+}
+
+model CampaignImage {
+  id          String    @id @default(cuid())
+  campaignId  String    @map("campaign_id")
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  url         String
+  alt         String?
+  order       Int       @default(0)
+  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  @@index([campaignId])
+  @@map("campaign_images")
+}
+
+// ============ DOAÇÕES ============
+
+model Donation {
+  id              String    @id @default(cuid())
+  campaignId      String    @map("campaign_id")
+  campaign        Campaign  @relation(fields: [campaignId], references: [id])
+  
+  // Dados do doador
+  donorName       String    @map("donor_name")
+  donorEmail      String    @map("donor_email")
+  donorDocument   String?   @map("donor_document") // CPF/CNPJ
+  donorPhone      String?   @map("donor_phone")
+  isAnonymous     Boolean   @default(false) @map("is_anonymous")
+  
+  // Dados do pagamento
+  amount          Decimal
+  paymentMethod   String    @default("PIX") @map("payment_method")
+  status          String    @default("PENDING")
+  
+  // Dados Pagou
+  pagouTxId       String?   @unique @map("pagou_tx_id")
+  pagouQrCode     String?   @map("pagou_qr_code")
+  pagouEmv        String?   @map("pagou_emv")
+  pagouExpiresAt  DateTime? @map("pagou_expires_at")
+  
+  // Idempotência
+  idempotencyKey  String    @unique @map("idempotency_key")
+  
+  paidAt          DateTime? @map("paid_at")
+  refundedAt      DateTime? @map("refunded_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  receipt         Receipt?
+  
+  @@index([campaignId])
+  @@index([status])
+  @@index([pagouTxId])
+  @@index([donorEmail])
+  @@index([createdAt])
+  @@map("donations")
+}
+
+// ============ RECIBOS ============
+
+model Receipt {
+  id          String    @id @default(cuid())
+  donationId  String    @unique @map("donation_id")
+  donation    Donation  @relation(fields: [donationId], references: [id])
+  
+  number      String    @unique
+  url         String?
+  hash        String?   // SHA-256 do PDF para verificação
+  
+  isValid     Boolean   @default(true) @map("is_valid")
+  issuedAt    DateTime  @default(now()) @map("issued_at")
+  
+  @@index([number])
+  @@map("receipts")
+}
+
+// ============ WEBHOOKS & LOGS ============
+
+model WebhookLog {
+  id              String    @id @default(cuid())
+  organizationId  String    @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  
+  event           String
+  payload         String    // JSON stringified no SQLite
+  headers         String    // JSON stringified no SQLite
+  
+  signatureValid  Boolean   @map("signature_valid")
+  processed       Boolean   @default(false)
+  processedAt     DateTime? @map("processed_at")
+  error           String?
+  
+  idempotencyKey  String?   @unique @map("idempotency_key")
+  
+  receivedAt      DateTime  @default(now()) @map("received_at")
+  
+  @@index([organizationId])
+  @@index([event])
+  @@index([receivedAt])
+  @@index([processed])
+  @@map("webhook_logs")
+}
+
+model AuditLog {
+  id              String    @id @default(cuid())
+  organizationId  String?   @map("organization_id")
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  
+  userId          String?   @map("user_id")
+  action          String
+  entity          String
+  entityId        String?   @map("entity_id")
+  
+  oldValue        String?   @map("old_value") // JSON stringified
+  newValue        String?   @map("new_value") // JSON stringified
+  
+  ipAddress       String?   @map("ip_address")
+  userAgent       String?   @map("user_agent")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
