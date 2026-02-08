@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -179,8 +179,8 @@ model WebhookLog {
   organization    Organization @relation(fields: [organizationId], references: [id])
   
   event           String
-  payload         String    // JSON stringified no SQLite
-  headers         String    // JSON stringified no SQLite
+  payload         Json
+  headers         Json
   
   signatureValid  Boolean   @map("signature_valid")
   processed       Boolean   @default(false)

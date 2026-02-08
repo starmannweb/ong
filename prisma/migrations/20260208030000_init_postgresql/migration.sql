@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE "organizations" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "document" TEXT,
@@ -12,111 +12,119 @@ CREATE TABLE "organizations" (
     "pagou_secret_key" TEXT,
     "pagou_webhook_secret" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" DATETIME NOT NULL
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "users" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "password_hash" TEXT NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'ORG_ADMIN',
     "organization_id" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "email_verified" DATETIME,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" DATETIME NOT NULL,
-    CONSTRAINT "users_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "email_verified" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "campaigns" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "short_desc" TEXT,
     "cover_image" TEXT,
-    "goal_amount" DECIMAL NOT NULL,
-    "current_amount" DECIMAL NOT NULL DEFAULT 0,
-    "start_date" DATETIME NOT NULL,
-    "end_date" DATETIME,
+    "goal_amount" DECIMAL(65,30) NOT NULL,
+    "current_amount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3),
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
     "is_highlighted" BOOLEAN NOT NULL DEFAULT false,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" DATETIME NOT NULL,
-    CONSTRAINT "campaigns_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "campaigns_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "campaign_images" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "campaign_id" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "alt" TEXT,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "campaign_images_campaign_id_fkey" FOREIGN KEY ("campaign_id") REFERENCES "campaigns" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "campaign_images_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "donations" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "campaign_id" TEXT NOT NULL,
     "donor_name" TEXT NOT NULL,
     "donor_email" TEXT NOT NULL,
     "donor_document" TEXT,
     "donor_phone" TEXT,
     "is_anonymous" BOOLEAN NOT NULL DEFAULT false,
-    "amount" DECIMAL NOT NULL,
+    "amount" DECIMAL(65,30) NOT NULL,
     "payment_method" TEXT NOT NULL DEFAULT 'PIX',
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "pagou_tx_id" TEXT,
     "pagou_qr_code" TEXT,
     "pagou_emv" TEXT,
-    "pagou_expires_at" DATETIME,
+    "pagou_expires_at" TIMESTAMP(3),
     "idempotency_key" TEXT NOT NULL,
-    "paid_at" DATETIME,
-    "refunded_at" DATETIME,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" DATETIME NOT NULL,
-    CONSTRAINT "donations_campaign_id_fkey" FOREIGN KEY ("campaign_id") REFERENCES "campaigns" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "paid_at" TIMESTAMP(3),
+    "refunded_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "donations_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "receipts" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "donation_id" TEXT NOT NULL,
     "number" TEXT NOT NULL,
     "url" TEXT,
     "hash" TEXT,
     "is_valid" BOOLEAN NOT NULL DEFAULT true,
-    "issued_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "receipts_donation_id_fkey" FOREIGN KEY ("donation_id") REFERENCES "donations" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "issued_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "receipts_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "webhook_logs" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
     "event" TEXT NOT NULL,
-    "payload" TEXT NOT NULL,
-    "headers" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "headers" JSONB NOT NULL,
     "signature_valid" BOOLEAN NOT NULL,
     "processed" BOOLEAN NOT NULL DEFAULT false,
-    "processed_at" DATETIME,
+    "processed_at" TIMESTAMP(3),
     "error" TEXT,
     "idempotency_key" TEXT,
-    "received_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "webhook_logs_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "received_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "webhook_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "audit_logs" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "organization_id" TEXT,
     "user_id" TEXT,
     "action" TEXT NOT NULL,
@@ -126,8 +134,9 @@ CREATE TABLE "audit_logs" (
     "new_value" TEXT,
     "ip_address" TEXT,
     "user_agent" TEXT,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "audit_logs_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -219,3 +228,24 @@ CREATE INDEX "audit_logs_action_idx" ON "audit_logs"("action");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_created_at_idx" ON "audit_logs"("created_at");
+
+-- AddForeignKey
+ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "campaign_images" ADD CONSTRAINT "campaign_images_campaign_id_fkey" FOREIGN KEY ("campaign_id") REFERENCES "campaigns"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "donations" ADD CONSTRAINT "donations_campaign_id_fkey" FOREIGN KEY ("campaign_id") REFERENCES "campaigns"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "receipts" ADD CONSTRAINT "receipts_donation_id_fkey" FOREIGN KEY ("donation_id") REFERENCES "donations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "webhook_logs" ADD CONSTRAINT "webhook_logs_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
