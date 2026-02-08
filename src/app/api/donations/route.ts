@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { PagouClient } from '@/lib/pagou';
 import { decrypt } from '@/lib/crypto';
-import { v4 as uuidv4 } from 'uuid'; // Precisaria instalar, mas vou usar randomUUID do node
+
 
 interface CreateDonationRequest {
     campaignId: string;
